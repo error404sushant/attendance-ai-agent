@@ -3,7 +3,7 @@
 
 set -e
 
-REPO_URL="REPLACE_WITH_YOUR_GITHUB_REPO_URL"
+REPO_URL="https://github.com/error404sushant/attendance-ai-agent.git"
 DOMAIN="agent.facenova.uk"
 APP_DIR="/opt/attendance-agent"
 
