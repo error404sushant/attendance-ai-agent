@@ -1,0 +1,15 @@
+[Unit]
+Description=Attendance AI Agent
+After=network.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/attendance-agent/backend
+ExecStart=/opt/attendance-agent/backend/venv/bin/uvicorn main:app --host 0.0.0.0 --port 8000
+Restart=always
+RestartSec=5
+EnvironmentFile=/opt/attendance-agent/backend/.env
+
+[Install]
+WantedBy=multi-user.target

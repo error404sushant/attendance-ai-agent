@@ -1,0 +1,233 @@
+{
+  "info": {
+    "name": "Attendance AI Agent",
+    "description": "Complete API collection for the AI Attendance Agent backend",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "https://agent.facenova.uk",
+      "description": "Change to http://localhost:8000 for local testing"
+    }
+  ],
+  "item": [
+    {
+      "name": "1. Health Check",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/health",
+          "host": ["{{base_url}}"],
+          "path": ["health"]
+        },
+        "description": "Check if the server is running and how many APIs/rules are loaded."
+      },
+      "response": [
+        {
+          "name": "Server OK",
+          "status": "OK",
+          "code": 200,
+          "body": "{\n  \"status\": \"ok\",\n  \"service\": \"Attendance AI Agent\",\n  \"config_loaded\": true,\n  \"apis_count\": 2,\n  \"rules_count\": 6\n}"
+        }
+      ]
+    },
+    {
+      "name": "2. Set Config (Register APIs)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"base_url\": \"https://your-company-api.com\",\n  \"apis\": [\n    {\n      \"name\": \"get_attendance\",\n      \"description\": \"Call this when user asks about attendance, present days, absent days, or attendance summary for any month or date range\",\n      \"method\": \"GET\",\n      \"endpoint\": \"/api/v1/attendance\",\n      \"parameters\": [\"user_id\", \"month\", \"year\"]\n    },\n    {\n      \"name\": \"get_leave_balance\",\n      \"description\": \"Call this when user asks about leaves, remaining leave days, sick leave, casual leave, or any leave balance\",\n      \"method\": \"GET\",\n      \"endpoint\": \"/api/v1/leaves/balance\",\n      \"parameters\": [\"user_id\"]\n    },\n    {\n      \"name\": \"get_holidays\",\n      \"description\": \"Call this when user asks about upcoming holidays, public holidays, or whether a specific day is a holiday\",\n      \"method\": \"GET\",\n      \"endpoint\": \"/api/v1/holidays\",\n      \"parameters\": [\"year\", \"month\"]\n    }\n  ]\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{base_url}}/config",
+          "host": ["{{base_url}}"],
+          "path": ["config"]
+        },
+        "description": "Register your company APIs. Call this once to set up. Calling again will REPLACE the old config — old APIs are deleted, new ones take effect immediately."
+      },
+      "response": [
+        {
+          "name": "Config Saved",
+          "status": "OK",
+          "code": 200,
+          "body": "{\n  \"success\": true,\n  \"message\": \"Config saved. Previous config replaced. 3 API(s) registered.\",\n  \"base_url\": \"https://your-company-api.com\",\n  \"apis_registered\": [\"get_attendance\", \"get_leave_balance\", \"get_holidays\"]\n}"
+        }
+      ]
+    },
+    {
+      "name": "3. Get Config (View Current APIs)",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/config",
+          "host": ["{{base_url}}"],
+          "path": ["config"]
+        },
+        "description": "View what APIs are currently registered in the agent."
+      },
+      "response": [
+        {
+          "name": "Current Config",
+          "status": "OK",
+          "code": 200,
+          "body": "{\n  \"configured\": true,\n  \"base_url\": \"https://your-company-api.com\",\n  \"apis\": [\n    {\n      \"name\": \"get_attendance\",\n      \"description\": \"Call this when user asks about attendance...\",\n      \"method\": \"GET\",\n      \"endpoint\": \"/api/v1/attendance\",\n      \"parameters\": [\"user_id\", \"month\", \"year\"]\n    }\n  ]\n}"
+        }
+      ]
+    },
+    {
+      "name": "4. Set Rules (Agent Behavior)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"rules\": [\n    \"Only answer questions related to attendance, leaves, and holidays.\",\n    \"Never reveal the bearer_token in any response.\",\n    \"Always return a full HTML page with an embedded chart.\",\n    \"Use dark background (#1a1a2e) with teal accent (#00C9A7). Mobile friendly.\",\n    \"Never make up data. Always call an API first.\",\n    \"If user asks about salary, HR policies, or anything outside scope — say: I can only help with attendance and leave information.\"\n  ]\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{base_url}}/rules",
+          "host": ["{{base_url}}"],
+          "path": ["rules"]
+        },
+        "description": "Set agent behavior rules. Calling again REPLACES all old rules. Write rules like instructions to a smart employee."
+      },
+      "response": [
+        {
+          "name": "Rules Saved",
+          "status": "OK",
+          "code": 200,
+          "body": "{\n  \"success\": true,\n  \"message\": \"Rules saved. Previous rules completely replaced. 6 rule(s) active.\",\n  \"rules\": [\n    \"Only answer questions related to attendance, leaves, and holidays.\",\n    \"...\"\n  ]\n}"
+        }
+      ]
+    },
+    {
+      "name": "5. Get Rules (View Current Rules)",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/rules",
+          "host": ["{{base_url}}"],
+          "path": ["rules"]
+        },
+        "description": "View the current agent behavior rules."
+      },
+      "response": []
+    },
+    {
+      "name": "6. Chat — Ask Attendance",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"user_id\": \"emp_123\",\n  \"bearer_token\": \"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.example\",\n  \"message\": \"Show my attendance for this month\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{base_url}}/chat",
+          "host": ["{{base_url}}"],
+          "path": ["chat"]
+        },
+        "description": "Main endpoint called by Flutter. Sends user message, gets back HTML with chart."
+      },
+      "response": [
+        {
+          "name": "Success Response",
+          "status": "OK",
+          "code": 200,
+          "body": "{\n  \"success\": true,\n  \"html\": \"<html><body style='background:#1a1a2e'>...chart and data here...</html>\"\n}"
+        }
+      ]
+    },
+    {
+      "name": "7. Chat — Ask Leave Balance",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"user_id\": \"emp_123\",\n  \"bearer_token\": \"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.example\",\n  \"message\": \"How many leaves do I have left?\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{base_url}}/chat",
+          "host": ["{{base_url}}"],
+          "path": ["chat"]
+        },
+        "description": "Chat about leave balance."
+      },
+      "response": []
+    },
+    {
+      "name": "8. Chat — Ask Out of Scope (should refuse)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"user_id\": \"emp_123\",\n  \"bearer_token\": \"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.example\",\n  \"message\": \"What is my salary?\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{base_url}}/chat",
+          "host": ["{{base_url}}"],
+          "path": ["chat"]
+        },
+        "description": "Agent should refuse to answer salary questions and return the out-of-scope message."
+      },
+      "response": []
+    }
+  ]
+}
