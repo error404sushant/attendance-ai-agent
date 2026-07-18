@@ -508,10 +508,12 @@ def _append_and_save(history: list, user_id: str, tenant_id: str,
     save_conversation(user_id, tenant_id, history)
 
 
-def _format_result_text(description: str, result: dict) -> str:
-    """Format API result as clean plain text — no HTML tags."""
+def _format_result_text(description: str, result: dict, question: str = "") -> str:
+    """Format API result as clean plain text — question-aware so only relevant fields shown."""
     if isinstance(result, dict) and result.get('error'):
         return f"Error: {result['error']}"
+
+    q = question.lower()
 
     top_list = None
     if isinstance(result, list) and result:
@@ -532,37 +534,74 @@ def _format_result_text(description: str, result: dict) -> str:
 
     lines = []
 
-    shifts = data.get('shiftDetails') or data.get('shift_details') or data.get('shifts')
-    if isinstance(shifts, list) and shifts:
-        lines.append(_format_shift_text(shifts))
+    # Shift question → show only shift info
+    if 'shift' in q or 'schedule' in q or 'timing' in q or 'time' in q:
+        shifts = data.get('shiftDetails') or data.get('shift_details') or data.get('shifts')
+        if isinstance(shifts, list) and shifts:
+            return _format_shift_text(shifts)
 
-    stats = {k: v for k, v in data.items() if _is_stat_key(k, v)}
-    if stats:
-        for k, v in stats.items():
-            lines.append(f"• { _fmt_label(k)}: {v}")
+    # Area question → show only areas
+    if 'area' in q or 'zone' in q or 'location' in q:
+        areas = data.get('areas') or data.get('assigned_areas')
+        if isinstance(areas, list) and areas:
+            names = [a.get('name', '?') for a in areas if isinstance(a, dict)]
+            return f"Your assigned areas are: {', '.join(names)}."
 
-    list_key, list_val = _best_list(data) if _best_list(data) else (None, None)
-    if list_val:
-        for item in list_val[:10]:
-            name = item.get('staff_name') or item.get('name') or item.get('full_name') or str(item)
+    # Subordinate/team question → show only subordinates
+    if 'subordinate' in q or 'team' in q or 'report' in q or 'under' in q:
+        subs = data.get('subordinates')
+        if isinstance(subs, list):
+            all_subs = _get_recursive_subordinates(subs)
+            if not all_subs:
+                return "You currently have no subordinates reporting to you."
+            names = [s.get('name', '?') for s in all_subs if isinstance(s, dict)]
+            return f"You have {len(names)} subordinates: {', '.join(names[:15])}"
+
+    # Attendance/stats question → show stat counts + staff list if any
+    if any(w in q for w in ('attendance', 'present', 'absent', 'leave', 'summary', 'month', 'report')):
+        stats = {k: v for k, v in data.items() if _is_stat_key(k, v)}
+        if stats:
+            for k, v in stats.items():
+                lines.append(f"• {_fmt_label(k)}: {v}")
+        list_result = _best_list(data)
+        if list_result:
+            _, list_val = list_result
+            for item in list_val[:10]:
+                name = item.get('staff_name') or item.get('name') or item.get('full_name') or ''
+                status = item.get('status_text') or item.get('attendance_status') or ''
+                if name:
+                    lines.append(f"• {name}" + (f" — {status}" if status else ""))
+        if lines:
+            return '\n'.join(lines)
+
+    # Generic list response (staff list, etc.)
+    if top_list:
+        for item in top_list[:10]:
+            if not isinstance(item, dict):
+                continue
+            name = item.get('staff_name') or item.get('name') or item.get('full_name') or ''
             status = item.get('status_text') or item.get('attendance_status') or ''
-            line = f"• {name}"
-            if status:
-                line += f" — {status}"
-            lines.append(line)
+            if name:
+                lines.append(f"• {name}" + (f" — {status}" if status else ""))
+        if lines:
+            return '\n'.join(lines)
 
-    if not lines:
-        skip = _STAT_ALLOW_WORDS | _LIST_SKIP_WORDS | {'error', 'profile_image_meta_data', 'credentialinfo'}
-        for k, v in data.items():
-            kl = k.lower()
-            if any(w in kl for w in skip):
-                continue
-            if isinstance(v, (list, dict)):
-                continue
-            if v is not None and str(v).strip():
-                lines.append(f"• {k.replace('_', ' ').title()}: {v}")
+    # Fallback: flat key-value for remaining cases (profile detail, etc.)
+    _SKIP_KEYS = {'avatar', 'profile_image', 'image_url', 'picture', 'photo',
+                  'profile_image_meta_data', 'credentialinfo', 'credential_info',
+                  'tempgeofenceids', 'routegeofences', 'route_geofences',
+                  'last_location', 'lastlocation', 'permissions'}
+    for k, v in data.items():
+        kl = k.lower().replace('_', '')
+        if kl in _SKIP_KEYS or kl in {s.replace('_', '') for s in _SKIP_KEYS}:
+            continue
+        if isinstance(v, (list, dict)) or isinstance(v, bool):
+            continue
+        if v is None or str(v).strip() == '':
+            continue
+        lines.append(f"• {k.replace('_', ' ').title()}: {v}")
 
-    return '\n'.join(lines) if lines else f"Data retrieved successfully."
+    return '\n'.join(lines) if lines else "Data retrieved successfully."
 
 
 async def run_agent(user_id: str, bearer_token: str, message: str, tenant_id: str = "default", format: str = "html") -> dict:
@@ -591,7 +630,9 @@ async def run_agent(user_id: str, bearer_token: str, message: str, tenant_id: st
                 else:
                     notes.append(f"default {k}={v}")
             defaults_note = f" | Defaults: {', '.join(notes)}"
-        api_context_lines.append(f"- {api['name']}: {api['description']}{defaults_note}")
+        raw_desc = api.get("raw_description", "")
+        raw_note = f"\n  RESPONSE SCHEMA: {raw_desc}" if raw_desc else ""
+        api_context_lines.append(f"- {api['name']}: {api['description']}{defaults_note}{raw_note}")
 
     system_prompt = f"""You are an AI assistant developed by Sushant Behera, helping employees with attendance, hierarchy, and leave queries.
 
@@ -727,7 +768,7 @@ INSTRUCTIONS:
             desc = api_config_used["description"] if api_config_used else "Response"
             _append_and_save(history, user_id, tenant_id, message, "[data card]", now_iso)
             if format == "text":
-                return {"html": None, "text": _format_result_text(desc, api_result)}
+                return {"html": None, "text": _format_result_text(desc, api_result, message)}
             return {"html": _format_result_html(desc, api_result, user_id, now), "text": None, "card_height": 480}
 
         else:
