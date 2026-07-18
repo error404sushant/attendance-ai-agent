@@ -31,8 +31,10 @@ def parse_curl(curl_command: str) -> dict:
     base_url = f"{parsed.scheme}://{parsed.netloc}"
     endpoint = parsed.path or "/"
 
-    # Query parameters (GET)
-    query_params = list(parse_qs(parsed.query).keys())
+    # Query parameters (GET) — keep both names and default values
+    qs = parse_qs(parsed.query)
+    query_params = list(qs.keys())
+    defaults = {k: v[0] for k, v in qs.items()}  # e.g. {"staff_id": "3706", "month": "07"}
 
     # Body parameters (POST)
     body_params = []
@@ -58,4 +60,5 @@ def parse_curl(curl_command: str) -> dict:
         "base_url": base_url,
         "endpoint": endpoint,
         "parameters": parameters,
+        "defaults": defaults,   # hardcoded values from the curl URL
     }
