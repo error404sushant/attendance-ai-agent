@@ -8,6 +8,10 @@ def parse_curl(curl_command: str) -> dict:
     curl = re.sub(r'\\\n', ' ', curl_command)
     curl = re.sub(r'\s+', ' ', curl).strip()
 
+    # If plain URL is given (no curl keyword), wrap it
+    if curl.startswith("http://") or curl.startswith("https://"):
+        curl = f"curl '{curl}'"
+
     # Method
     method_match = re.search(r'-X\s+([A-Z]+)', curl, re.IGNORECASE)
     if method_match:
