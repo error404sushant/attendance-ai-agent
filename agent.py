@@ -102,30 +102,30 @@ _IMAGE_FIELDS = {'avatar', 'profile_image', 'photo', 'image_url', 'picture'}
 
 
 def _format_shift_html(shifts: list) -> str:
-    """Format shiftDetails array as a readable HTML card."""
+    """Format shiftDetails array as a full HTML document."""
     if not shifts:
-        return '<p style="color:#aaa;font-size:13px">No shift information available.</p>'
+        return (
+            '<html><body style="background:#1a1a2e;color:#aaa;font-family:sans-serif;padding:16px;margin:0">'
+            '<p style="font-size:13px">No shift information available.</p></body></html>'
+        )
     rows = ''
     for i, s in enumerate(shifts):
         name = s.get('name') or s.get('shift_name') or f'Shift {i+1}'
-        start = s.get('start_time') or s.get('start') or ''
-        end = s.get('end_time') or s.get('end') or ''
+        start = s.get('start_time') or s.get('start') or '—'
+        end = s.get('end_time') or s.get('end') or '—'
         days = s.get('days') or s.get('working_days') or ''
-        restriction = s.get('restriction') or s.get('restrictions') or ''
         rows += f'''
         <div style="background:#0f3460;border-radius:10px;padding:12px;margin-bottom:8px">
           <div style="color:#00C9A7;font-size:13px;font-weight:bold;margin-bottom:6px">{name}</div>
-          <div style="display:flex;gap:12px;flex-wrap:wrap;font-size:11px;color:#ccc">
-            <span>🕐 {start} – {end}</span>
-            {f'<span>📅 {days}</span>' if days else ''}
-          </div>
-          {f'<div style="color:#f0a500;font-size:10px;margin-top:4px">⚠ {restriction}</div>' if restriction else ''}
+          <div style="font-size:12px;color:#ccc">🕐 {start} – {end}</div>
+          {f'<div style="font-size:11px;color:#aaa;margin-top:4px">📅 {days}</div>' if days else ''}
         </div>'''
-    return f'''
-    <div style="background:#16213e;border-radius:12px;padding:12px">
-      <div style="color:#00C9A7;font-size:12px;font-weight:bold;margin-bottom:8px">Work Shifts</div>
-      {rows}
-    </div>'''
+    return (
+        '<html><body style="background:#1a1a2e;font-family:sans-serif;margin:0;padding:12px">'
+        '<div style="color:#00C9A7;font-size:12px;font-weight:bold;margin-bottom:8px">Work Shifts</div>'
+        f'{rows}'
+        '</body></html>'
+    )
 
 
 def _format_shift_text(shifts: list) -> str:
@@ -173,6 +173,8 @@ def _try_simple_answer(question: str, result) -> str | None:
                        'my email', 'my designation', 'my department', 'my role',
                        'my gender', 'my dob', 'my id', 'my employee', 'my supervisor',
                        'my shift', 'my schedule', 'my areas', 'my area',
+                       'any shift', 'have a shift', 'have shift', 'i have shift',
+                       'do i have any', 'do i have a', 'have any shift',
                        'who am i', 'tell me my', 'show my name', 'whats my',
                        'my profile image', 'my profile picture', 'my photo',
                        'my avatar', 'my image', 'my picture',
@@ -206,9 +208,11 @@ def _try_simple_answer(question: str, result) -> str | None:
         return None
 
     # 1. Handle shift queries
-    if 'shift' in q or 'schedule' in q:
+    if 'shift' in q or 'schedule' in q or 'timing' in q:
         shifts = data.get('shiftDetails') or data.get('shift_details') or data.get('shifts')
-        if isinstance(shifts, list) and shifts:
+        if isinstance(shifts, list):
+            if not shifts:
+                return "No shift is assigned to you." if not _is_hindi(q) else "आपको कोई shift assign नहीं है।"
             return _format_shift_html(shifts)
 
     # 2. Handle geographic assigned areas
