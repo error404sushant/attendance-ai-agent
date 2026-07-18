@@ -4,7 +4,9 @@ from urllib.parse import urlparse, parse_qs
 
 
 def parse_curl(curl_command: str) -> dict:
-    curl = curl_command.strip()
+    # Normalize: remove line continuations, collapse whitespace
+    curl = re.sub(r'\\\n', ' ', curl_command)
+    curl = re.sub(r'\s+', ' ', curl).strip()
 
     # Method
     method_match = re.search(r'-X\s+([A-Z]+)', curl, re.IGNORECASE)
