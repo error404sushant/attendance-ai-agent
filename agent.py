@@ -728,9 +728,20 @@ INSTRUCTIONS:
                     api_config_used = api_config
                     curl_defaults = api_config.get("defaults", {})
 
+                    # Detect if this is a "me/my" self-query
+                    msg_lower = message.lower()
+                    is_self_query = any(t in msg_lower for t in (
+                        'my ', 'me ', ' i ', 'i am', "i'm", 'myself',
+                        'mera', 'meri', 'mere', 'main', 'kaun hoon'
+                    ))
+
                     for param, default_val in curl_defaults.items():
                         if param not in fn_args:
-                            fn_args[param] = default_val
+                            # For self-queries, override staff_id default with the logged-in user_id
+                            if param == "staff_id" and is_self_query:
+                                fn_args[param] = user_id
+                            else:
+                                fn_args[param] = default_val
 
                     if "user_id" in api_config.get("parameters", []) and "user_id" not in fn_args:
                         fn_args["user_id"] = user_id
